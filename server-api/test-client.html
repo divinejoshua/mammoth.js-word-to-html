@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mammoth API Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .endpoint {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .endpoint h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, textarea, button {
+            margin: 5px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="file"] {
+            border: none;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 10px 20px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .loading {
+            color: #007cba;
+            font-style: italic;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .options {
+            background-color: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .options label {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        .options input[type="checkbox"] {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mammoth API Test Client</h1>
+    <p>Test the various API endpoints for converting Word documents to HTML.</p>
+
+    <div class="container">
+        <h2>Server Status</h2>
+        <button onclick="checkHealth()">Check Health</button>
+        <div id="healthStatus" class="status"></div>
+    </div>
+
+    <div class="container">
+        <h2>File Upload Conversion</h2>
+        <div class="endpoint">
+            <h3>POST /api/convert/file</h3>
+            <input type="file" id="fileInput" accept=".docx" />
+            <div class="options">
+                <label><input type="checkbox" id="ignoreEmpty"> Ignore Empty Paragraphs</label>
+                <label><input type="text" id="idPrefix" placeholder="ID Prefix (optional)"></label>
+            </div>
+            <button onclick="convertFile()">Convert File</button>
+            <div id="fileResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Base64 Conversion</h2>
+        <div class="endpoint">
+            <h3>POST /api/convert/base64</h3>
+            <textarea id="base64Input" placeholder="Paste base64 string here..." rows="4" style="width: 100%;"></textarea>
+            <div class="options">
+                <label><input type="checkbox" id="ignoreEmptyBase64"> Ignore Empty Paragraphs</label>
+                <label><input type="text" id="idPrefixBase64" placeholder="ID Prefix (optional)"></label>
+            </div>
+            <button onclick="convertBase64()">Convert Base64</button>
+            <div id="base64Result" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Hex String Conversion</h2>
+        <div class="endpoint">
+            <h3>POST /api/convert/hex</h3>
+            <textarea id="hexInput" placeholder="Paste hex string here (e.g., 50 4B 03 04...)..." rows="4" style="width: 100%;"></textarea>
+            <div class="options">
+                <label><input type="checkbox" id="ignoreEmptyHex"> Ignore Empty Paragraphs</label>
+            </div>
+            <button onclick="convertHex()">Convert Hex</button>
+            <div id="hexResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Bytes Array Conversion</h2>
+        <div class="endpoint">
+            <h3>POST /api/convert/bytes</h3>
+            <textarea id="bytesInput" placeholder="Paste bytes array here (e.g., [80, 75, 3, 4, ...])..." rows="4" style="width: 100%;"></textarea>
+            <div class="options">
+                <label><input type="text" id="idPrefixBytes" placeholder="ID Prefix (optional)"></label>
+            </div>
+            <button onclick="convertBytes()">Convert Bytes</button>
+            <div id="bytesResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+
+        // Health check
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('healthStatus');
+                if (response.ok) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = `✅ Server is running - Version ${data.version}`;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '❌ Server error';
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('healthStatus');
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Cannot connect to server';
+            }
+        }
+
+        // File conversion
+        async function convertFile() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('fileResult');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('document', fileInput.files[0]);
+            
+            if (document.getElementById('ignoreEmpty').checked) {
+                formData.append('ignoreEmptyParagraphs', 'true');
+            }
+            
+            const idPrefix = document.getElementById('idPrefix').value;
+            if (idPrefix) {
+                formData.append('idPrefix', idPrefix);
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Converting...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/convert/file`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<strong>Success!</strong>\n\nHTML Output:\n${result.html}\n\nMessages: ${JSON.stringify(result.messages, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network error: ${error.message}`;
+            }
+        }
+
+        // Base64 conversion
+        async function convertBase64() {
+            const base64Input = document.getElementById('base64Input').value.trim();
+            const resultDiv = document.getElementById('base64Result');
+            
+            if (!base64Input) {
+                alert('Please enter a base64 string');
+                return;
+            }
+
+            const options = {};
+            if (document.getElementById('ignoreEmptyBase64').checked) {
+                options.ignoreEmptyParagraphs = true;
+            }
+            
+            const idPrefix = document.getElementById('idPrefixBase64').value;
+            if (idPrefix) {
+                options.idPrefix = idPrefix;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Converting...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/convert/base64`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        base64: base64Input,
+                        options: options
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<strong>Success!</strong>\n\nHTML Output:\n${result.html}\n\nMessages: ${JSON.stringify(result.messages, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network error: ${error.message}`;
+            }
+        }
+
+        // Hex conversion
+        async function convertHex() {
+            const hexInput = document.getElementById('hexInput').value.trim();
+            const resultDiv = document.getElementById('hexResult');
+            
+            if (!hexInput) {
+                alert('Please enter a hex string');
+                return;
+            }
+
+            const options = {};
+            if (document.getElementById('ignoreEmptyHex').checked) {
+                options.ignoreEmptyParagraphs = true;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Converting...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/convert/hex`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hex: hexInput,
+                        options: options
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<strong>Success!</strong>\n\nHTML Output:\n${result.html}\n\nMessages: ${JSON.stringify(result.messages, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network error: ${error.message}`;
+            }
+        }
+
+        // Bytes conversion
+        async function convertBytes() {
+            const bytesInput = document.getElementById('bytesInput').value.trim();
+            const resultDiv = document.getElementById('bytesResult');
+            
+            if (!bytesInput) {
+                alert('Please enter a bytes array');
+                return;
+            }
+
+            let bytes;
+            try {
+                bytes = JSON.parse(bytesInput);
+                if (!Array.isArray(bytes)) {
+                    throw new Error('Input must be an array');
+                }
+            } catch (error) {
+                alert('Please enter a valid JSON array of bytes');
+                return;
+            }
+
+            const options = {};
+            const idPrefix = document.getElementById('idPrefixBytes').value;
+            if (idPrefix) {
+                options.idPrefix = idPrefix;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Converting...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/convert/bytes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        bytes: bytes,
+                        options: options
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<strong>Success!</strong>\n\nHTML Output:\n${result.html}\n\nMessages: ${JSON.stringify(result.messages, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${result.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network error: ${error.message}`;
+            }
+        }
+
+        // Auto-check health on page load
+        window.onload = function() {
+            checkHealth();
+        };
+    </script>
+</body>
+</html>

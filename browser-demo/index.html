@@ -12,7 +12,30 @@
       </div>
     </div>
     <div class="container">
+      <h2>File Upload Demo</h2>
       <input id="document" type="file" />
+      
+      <h2>API Demo</h2>
+      <div class="api-section">
+        <div class="input-group">
+          <label for="base64Input">Base64 Document:</label>
+          <textarea id="base64Input" placeholder="Paste base64 encoded document here..." rows="4"></textarea>
+          <button id="convertBase64">Convert Base64</button>
+        </div>
+        
+        <div class="input-group">
+          <label for="arrayInput">Array Buffer (hex):</label>
+          <textarea id="arrayInput" placeholder="Paste hex array (e.g., 50 4B 03 04...)..." rows="4"></textarea>
+          <button id="convertArray">Convert Array</button>
+        </div>
+        
+        <div class="input-group">
+          <label for="binaryInput">Binary String:</label>
+          <textarea id="binaryInput" placeholder="Paste binary string here..." rows="4"></textarea>
+          <button id="convertBinary">Convert Binary</button>
+        </div>
+      </div>
+      
       <div class="row">
         <div class="span8">
           <div id="output" class="well">
@@ -26,6 +49,7 @@
     </div>
     
     <script src="../mammoth.browser.js"></script>
+    <script src="mammoth-api.js"></script>
     <script src="demo.js"></script>
   </body>
 </html>
